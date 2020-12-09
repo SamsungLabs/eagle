@@ -1,0 +1,17 @@
+device:
+      device_addr: 
+      separate_process: False
+      spawn_server: False
+      device_user: 
+      target_args:
+          runs: 100
+          avg_between: 10
+          interval: 0.01
+          device: 'cpu'
+
+model:
+    cells_count: 5
+    stacks_count: 3
+    input_size: [1,32,32,3]
+    data_format: channels_last
+    num_classes: 100

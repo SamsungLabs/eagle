@@ -1,0 +1,21 @@
+predictor:
+    num_nodes: 9
+    num_features: 6
+    num_layers: 4
+    num_hidden: 600
+    dropout_ratio: 2.0e-3
+
+training:
+    epochs: 250
+    learning_rate: 4.0e-4
+    weight_decay: 5.0e-4
+    lr_patience: 10
+    es_patience: 35
+
+dataset:
+    total_points: 14884
+    training_points: 900
+    validation_points: 100
+    sampling_method: 'random'
+    sampling_seed: 999
+

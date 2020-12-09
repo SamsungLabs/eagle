@@ -1,0 +1,11 @@
+.vscode
+__pycache__
+venv/
+*.egg-info
+docs/build/
+docs/source/eagle*
+results*/
+*.pyc
+*.pdf
+*.png
+*.pickle
