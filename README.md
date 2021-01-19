@@ -97,7 +97,7 @@ Add `--save <name>` if you want to save your trained predictor.
 
 ## Reproducing NAS results from the [paper](https://arxiv.org/pdf/2007.08668.pdf)
 First, make sure everything is set up correctly as described in the sections above.
-You will also need accuracy dataset (in a format similar to latency datasets) - it can be downloaded from the same [Google Drive]() as others.
+You will also need accuracy dataset (in a format similar to latency datasets) - it can be downloaded from the same [Google Drive](https://drive.google.com/drive/folders/1lywFtYt6Y89nYbeDfqobU8TZAdFdZIbd?usp=sharing) as others.
 The accuracy datasets are all subsets of relevant full datasets (e.g., NAS-Bench-201) adapted to make them compatible with our training pipeline (common for latency and accuracy prediction).
 Additionally, if you are interested in latency-constrained NAS, make sure that relevant latency measurements and a pre-trained predictor are also present.
 
