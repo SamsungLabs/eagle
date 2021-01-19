@@ -9,3 +9,4 @@ results*/
 *.pdf
 *.png
 *.pickle
+.eggs

@@ -471,7 +471,7 @@ if __name__ == '__main__':
                 extra_args = yaml.load(f, Loader=yaml.Loader)
 
         if args.transfer:
-            if not args.load:
+            if args.load:
                 raise ValueError('Both --load and --transfer are set, please use only one. Note: "--transfer X" is the same as "--load X --reset_last"')
 
             args.load = args.transfer
@@ -487,7 +487,7 @@ if __name__ == '__main__':
                 raise ValueError('--lat_limit requires --transfer')
 
             lat_predictor_args = extra_args.get('predictor').copy()
-            lat_predictor_args.pop('binary_classifier')
+            lat_predictor_args.pop('binary_classifier', None)
             lat_predictor = infer.get_predictor(args.predictor, predictor_args=lat_predictor_args, checkpoint=args.load, ignore_last=False)
 
         if args.predictor != 'random':

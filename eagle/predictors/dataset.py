@@ -79,7 +79,7 @@ class EagleDataset():
             from . import infer
             print(f'Prefiltering models to include only those with latency < {lat_limit}')
             old_len = len(self.dataset)
-            self.dataset = [(pt,value) for pt, value in self.dataset if infer.simple_forward(model_module, lat_predictor, pt) * (0.00951075005531311 - 0.0008091678619384765) + 0.0008091678619384765 <= lat_limit]
+            self.dataset = [(pt,value) for pt, value in self.dataset if infer.simple_forward(model_module, lat_predictor, pt) <= lat_limit]
             print(f'{len(self.dataset)} points out of {old_len} matched the criteria')
             self.valid_pts = set([p[0] for p in self.dataset])
         else:
