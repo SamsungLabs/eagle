@@ -52,7 +52,7 @@ def get_predictor(predictor_name, predictor_args=None, checkpoint=None, ignore_l
     return predictor
 
 
-def prepare_tensors(gs, targets, model_module, binary_classifier, normalize, augments=None):
+def prepare_tensors(gs, targets, model_module, binary_classifier, normalize, augments=None, device=None):
     adjacency_batch, features_batch = [], []
     if augments:
         augments_batch = []
@@ -66,8 +66,12 @@ def prepare_tensors(gs, targets, model_module, binary_classifier, normalize, aug
             if augments:
                 aug_pair = []
             for g in pair:
-                matrix, labels = model_module.get_matrix_and_ops(g, prune=True, keep_dims=True)
-                adjacency, features = model_module.get_adjacency_and_features(matrix, labels)
+                if model_module is not None:
+                    matrix, labels = model_module.get_matrix_and_ops(g, prune=True, keep_dims=True)
+                    adjacency, features = model_module.get_adjacency_and_features(matrix, labels)
+                else:
+                    (adjacency, features), g = g
+
                 adjacency_pair.append(adjacency)
                 features_pair.append(features)
                 if augments:
@@ -79,8 +83,12 @@ def prepare_tensors(gs, targets, model_module, binary_classifier, normalize, aug
             if augments:
                 augments_batch.append(aug_pair)
         else:
-            matrix, labels = model_module.get_matrix_and_ops(g, prune=True, keep_dims=True)
-            adjacency, features = model_module.get_adjacency_and_features(matrix, labels)
+            if model_module is not None:
+                matrix, labels = model_module.get_matrix_and_ops(g, prune=True, keep_dims=True)
+                adjacency, features = model_module.get_adjacency_and_features(matrix, labels)
+            else:
+                (adjacency, features), g = g
+
             adjacency_batch.append(adjacency)
             features_batch.append(features)
             if augments:
@@ -104,13 +112,19 @@ def prepare_tensors(gs, targets, model_module, binary_classifier, normalize, aug
         else:
             targets = [[t] for t in targets]
 
-    if torch.cuda.is_available():
-        adjacency_batch = torch.DoubleTensor(adjacency_batch).cuda()
-        features_batch = torch.DoubleTensor(features_batch).cuda()
-        if targets is not None:
-            targets = torch.DoubleTensor(targets).cuda()
-        if augments:
-            augments_batch = torch.DoubleTensor(augments_batch).cuda()
+    def move(t):
+        if device:
+            return t.to(device=device)
+        elif torch.cuda.is_available():
+            return t.cuda()
+        return t
+
+    adjacency_batch = move(torch.DoubleTensor(adjacency_batch))
+    features_batch = move(torch.DoubleTensor(features_batch))
+    if targets is not None:
+        targets = move(torch.DoubleTensor(targets))
+    if augments:
+        augments_batch = move(torch.DoubleTensor(augments_batch))
 
     return adjacency_batch, features_batch, targets, augments_batch
 
@@ -129,32 +143,40 @@ def simple_forward(model_module, predictor, point, augments=None):
     return ret
 
 
-def precompute_embeddings(model_module, predictor, models, batch, augments=None):
+def _batched_helper(model_module, predictor, models, batch, augments, device, forward_fn):
     from tqdm import tqdm
-    embeddings = []
+    results = []
     steps = len(models) // batch
     if len(models) % batch != 0:
         steps += 1
 
     beg, end = 0, min(batch, len(models))
     for _ in tqdm(range(steps)):
-        #while beg < len(models):
-        batch_of_models = [m[0] for m in models[beg:end]]
-        adjacency, features, _, augments_t = prepare_tensors(batch_of_models, None, model_module, False, False, augments=augments)
-        if augments is not None:
-            ret = predictor.extract_features(adjacency, features, augments_t)
-        else:
-            ret = predictor.extract_features(adjacency, features)
+        batch_of_models = models[beg:end]
+        adjacency, features, _, augments_t = prepare_tensors(batch_of_models, None, model_module, False, False, augments=augments, device=device)
 
-        ret = [emb.detach().cpu() for emb in ret]
-        embeddings.extend(ret)
+        if augments is not None:
+            ret = forward_fn(adjacency, features, augments_t)
+        else:
+            ret = forward_fn(adjacency, features)
+
+        ret = [t.detach().cpu() for t in ret]
+        results.extend(ret)
 
         beg = end
         end = min(end + batch, len(models))
 
-    assert beg == len(models), f'{beg}, {end}, {len(models)}, {steps}, {batch}, {len(embeddings)}'
+    assert beg == len(models), f'{beg}, {end}, {len(models)}, {steps}, {batch}, {len(results)}'
+    return results
 
-    return embeddings
+
+
+def batched_forward(model_module, predictor, models, batch, augments=None, device=None):
+    return _batched_helper(model_module, predictor, models, batch, augments, device, predictor.__call__)
+
+
+def precompute_embeddings(model_module, predictor, models, batch, augments=None, device=None):
+    return _batched_helper(model_module, predictor, models, batch, augments, device, predictor.extract_features)
 
 
 def precomputed_forward(predictor, input_idx, features):

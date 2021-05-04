@@ -334,7 +334,8 @@ def predict(testing_data,
 
         if use_fast:
             print(f'Precomputing embeddings for {len(testing_data)} graphs')
-            precomputed = infer.precompute_embeddings(model_module, predictor, testing_data, 1024, augments=augments)
+            models = [r[0] for r in testing_data]
+            precomputed = infer.precompute_embeddings(model_module, predictor, models, 1024, augments=augments)
             print('Done')
 
         total = 0
@@ -431,7 +432,7 @@ if __name__ == '__main__':
     parser.add_argument('--expdir', type=str, default='results', help='Folder in which the results of measurements will be saved. Default: results')
     parser.add_argument('--process', action='store_true', help='Process measurements - use this if the measurements are not already processed')
     parser.add_argument('--multiple_files', action='store_true', help='Combine results from multiple files - use this if the measurements are not already combined')
-    parser.add_argument('--transfer', default=None, help='Perform transfer learning from a previously trained model - the argument should point to the checkpoint to load')
+    parser.add_argument('--transfer', default=None, help='Perform transfer learning from a previously trained model - the argument should point to the checkpoint to load, the final layer is still randomly initialized, use --load if you just want to load a checkpoint')
     parser.add_argument('--load', default=None, help='Checkpoint to load')
     parser.add_argument('--warmup', default=0, type=int, help='Number of warmup epochs for the last layer')
     parser.add_argument('--foresight_warmup', type=str, help='Path to the dataset containing foresight metrics which will be used to warmup the predictor during iterative training')
@@ -446,7 +447,7 @@ if __name__ == '__main__':
     parser.add_argument('--quiet', action='store_true', help='Suppress standard output')
     parser.add_argument('--iter', type=int, default=0, help='Number of iterations when using iterative search')
     parser.add_argument('--save', action='store_true', help='Save the best predictor')
-    parser.add_argument('--eval', action='store_true', help='Eval model only, do not train (use with --transfer to eval pretrained model)')
+    parser.add_argument('--eval', action='store_true', help='Eval model only, do not train (use with --load to eval pretrained model)')
     parser.add_argument('--lat_limit', type=float, default=None, help='Latency limit to prune the search space (requires --transfer to point to the latency predictor)')
     parser.add_argument('--sample_best', action='store_true')
     parser.add_argument('--sample_best2', action='store_true')
@@ -481,6 +482,12 @@ if __name__ == '__main__':
             predictor = None
         else:
             predictor = infer.get_predictor(args.predictor, predictor_args=extra_args.get('predictor'), checkpoint=args.load, ignore_last=args.reset_last, augment=len(args.foresight_augment))
+
+        # init model module if necessary
+        model_module = importlib.import_module('.' + args.model, 'eagle.models')
+        if hasattr(model_module, 'init_module'):
+            model_module.init_module(pathlib.Path(args.expdir) / args.model, **extra_args.get('model', {}).get('init', {}))
+
         lat_predictor = None
         if args.lat_limit:
             if not args.transfer:
@@ -513,7 +520,7 @@ if __name__ == '__main__':
                                     **extra_args.get('dataset', {}),
                                     lat_limit=args.lat_limit,
                                     lat_predictor=lat_predictor,
-                                    model_module=importlib.import_module('.' + args.model, 'eagle.models'))
+                                    model_module=model_module)
 
             if args.foresight_warmup:
                 if not args.iter:
@@ -527,7 +534,7 @@ if __name__ == '__main__':
                     **extra_args.get('foresight', {}).get('dataset', {}),
                     lat_limit=args.lat_limit,
                     lat_predictor=lat_predictor,
-                    model_module=importlib.import_module('.' + args.model, 'eagle.models'))
+                    model_module=model_module)
 
             if args.foresight_augment:
                 print(f'Using {len(args.foresight_augment)} foresight metric(s) to augment graph embeddings')

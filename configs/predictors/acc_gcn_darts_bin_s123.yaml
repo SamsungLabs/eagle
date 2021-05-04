@@ -1,0 +1,24 @@
+predictor:
+    num_features: 10
+    num_layers: 4
+    num_hidden: 600
+    dropout_ratio: 0.2
+    weight_init: thomas
+    bias_init: thomas
+    binary_classifier: True
+
+training:
+    epochs: 250
+    learning_rate: 3.5e-4
+    weight_decay: 5.0e-4
+    lr_patience: 10
+    es_patience: 35
+    batch_size: 64
+    shuffle: True
+    optim_name: adamw
+    lr_scheduler: cosine
+
+dataset:
+    sample_size: 1.0e+7
+    sampling_seed: 123
+    dataset_file: darts_10mln_s123.pickle

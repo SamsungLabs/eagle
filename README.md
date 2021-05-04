@@ -10,6 +10,7 @@ In this README, we provide:
 - [How to measure performance of neural networks on devices](#Device-measurement)
 - [How to use predictor to estimate performance](#Performance-predictor)
 - [Reproducing NAS results from the paper](#Reproducing-NAS-results-from-the-paper)
+- [Extra NAS experiments](#Extra-NAS-experiments)
 
 **If you have any questions, please open an issue or email us.** (last update: 13.01.2021)
 
@@ -158,10 +159,67 @@ This results is a "search trace" which we later feed into our generic NAS toolki
 
 
 ### NAS-Bench-101
-Coming soon
+To run accuracy prediction targetting NAS-Bench-101, you will need two things, both can be downloaded from the same Google Drive location as other files:
+ - NB1 validation accuracy dataset in a suitable format (similar to NB2), in the Google Drive the relevant file is called: `nasbench1_cifar10_avg_val_accuracy.pickle`
+ - Information about structure of the NB1 models extracted from the original dataset, this file is called `nb101_model_info.pickle`
+You can put the accuracy dataset anywhere you like, but the model info dataset should be put under `<results_dir>/nasbench101`, where `<results_dir>` is the root directory storing results (the default value is `./results`).
+> **Note:** if the `nb101_model_info.pickle` file is missing, the relevant python module will try to generate it from the full NB101 dataset. If you have access to the full dataset and for some reason prefer to generate the information yourself, you can append the following snippet to your `.yaml` config (e.g., `acc_gcn_nasbench101_bin.yaml`):
+> ```yaml
+> model:
+>     init:
+>        nb101_dataset: <path_to>/nasbench_only108.tfrecord
+> ```
+
+The following command can then be used train the binary predictor:
+```bash
+python3 -m eagle.predictors --model nasbench101 --metric accuracy --device none --cfg configs/predictors/acc_gcn_nasbench101_bin.yaml --iter 5 --sample_best2 --log --exp <exp_name> --predictor gcn --measurement <path_to>/nasbench1_cifar10_avg_val_accuracy.pickle
+```
+
+Similarly to the NB201 case, the results are stored as a text file holding information about the final ordering of the models in the search space.
+For NB101, the models are uniquely identified by the hashes of their graphs, following the convention established by the original authors of the dataset.
 
 ### DARTS
-Coming soon
+Running a search on the DARTS search space is a bit tedious as we do not have ground-truth accuracy of models and hence have to manually interleave training of the predictor with selecting and training of models (we used the official darts code to do that: https://github.com/quark0/darts).
+In our experiments we used three randomly sampled subsets of models from the DARTS search space, each containing 10 million models - the sampling process is done automatically and uses a fixed seed of either `000`, `123` or `888` for reproducibility.
+
+The overall process we used in our experiments can be summarized as:
+ - Sample a random subset of the DARTS search space and save it (let's call it S)
+ - Sample random 20 models from S and train, save the results in a dataset file with suitable format (dict with `Genotype` objects as keys, let's call it `F.pickle`)
+ - Train a predictor with a command similar to `python3 -m eagle.predictors --model darts --metric accuracy --device none --cfg configs/predictors/acc_gcn_darts_bin_s000.yaml --log --exp <run_name> --predictor gcn --measurement F.pickle --save`
+ - From the resulting log, take next 20 models according to the sampling strategy described in the paper (10 top, 10 random, check for duplicates)
+ - Train the new models and update F, repeat predictor training (initializing it with the previous checkpoint using `--load`)
+ - Repeat as many times as needed (in out experiments we did 3 iterations)
+
+
+## Extra NAS experiments
+
+### NAS-Bench-ASR
+Although not considered in the original paper (as it didn't exist back then), we also include some configs to try out our predictor on the recently-released NAS-Bench-ASR dataset.
+You will need a compatible dataset from the Google Drive: `nbasr_inv_avg_val_per.pickle`, this file contains inverse average phoneme error rate (`1 - sum(min(dataset.val_pers(seed)) for seed in dataset.seeds) / len(dataset.seeds)`) for each unique model in the default search space.
+You will also need to install the code from: https://github.com/SamsungLabs/nb-asr.
+
+To run an experiment, use the following command:
+```bash
+python3 -m eagle.predictors --model nasbench_asr --metric accuracy --device none --cfg configs/predictors/acc_gcn_nasbench_asr_bin.yaml --iter 5 --sample_best2 --log --exp <exp_name> --predictor gcn --measurement <path_to>/nbasr_inv_avg_val_per.pickle
+```
+
+Please consider citing the NB-ASR paper if you use their dataset!
+
+### Zero-cost warmup
+We include functionality to wamrup predictors using zero-cost metrics (https://github.com/SamsungLabs/zero-cost-nas).
+In order to do that, you'd need to have a dataset similar to the accuracy dataset used during training but containing zero-cost metrics for different models (we do not provide those but you can check the zero-cost repo for either the code to do that or a precomputed metrics which can be easily adjusted to our format).
+After that run your accuracy predictor training as usual with an extra argument:
+```bash
+(...) --foresight_warmup <path_to>/metrics.pickle
+```
+
+You'll also need to add a section called `foresight` to the config, analogical to the examples in `configs/predictors/*_foresight.yaml`.
+
+> **Note:** warmup using zero-cost metrics is only supported if using iterative predictor training
+
+> **Note:** we also support zero-cost augmentation where each training sample is augmented with zero-cost metric(s) of a model (i.e., `(graph,target_acc)` becomes `((graph,metrics),target_acc)`), although from our observations this does not improve results visibly. The argument is: `--foresight_augment [one or more zero-cost datasets]`
+
+Please consider citing the Zero-cost NAS paper if you use their metrics!
 
 ## Citation
 

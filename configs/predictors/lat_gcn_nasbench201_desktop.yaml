@@ -1,0 +1,25 @@
+predictor:
+    num_features: 6
+    num_layers: 4
+    num_hidden: 600
+    dropout_ratio: 2.0e-3
+    weight_init: thomas
+    bias_init: thomas
+
+training:
+    epochs: 250
+    learning_rate: 4.0e-4
+    weight_decay: 5.0e-4
+    lr_patience: 10
+    es_patience: 35
+    batch_size: 1
+    shuffle: True
+    optim_name: adamw
+    lr_scheduler: plateau
+
+dataset:
+    total_points: 15284
+    training_points: 900
+    validation_points: 100
+    sampling_method: 'random'
+    sampling_seed: !!null
