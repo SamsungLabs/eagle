@@ -117,6 +117,9 @@ def convert_to_tflite(graph, inputs, outputs, output_file=None, checkpoint=None,
             the binary form of the converted TFLite model (i.e. the content of the .tflite file)
     '''
     import tensorflow as tf
+    if tf.__version__.startswith('2.'):
+        tf = tf.compat.v1
+
     sessconfig = tf.ConfigProto(device_count = {'GPU': 0})
     sessconfig.gpu_options.allow_growth = True
     sessconfig.gpu_options.force_gpu_compatible = True

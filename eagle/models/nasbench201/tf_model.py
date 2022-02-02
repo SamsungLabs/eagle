@@ -16,6 +16,8 @@
 import pathlib
 
 import tensorflow as tf
+if tf.__version__.startswith('2.'):
+    tf = tf.compat.v1
 
 from . import utils
 from .. import tf_utils
